@@ -58,15 +58,31 @@ class ApiClient {
       });
 
       if (response.status === 401) {
-        // Attempt token refresh
-        const refreshed = await this.refreshToken();
-        if (refreshed) {
-          // Retry original request
-          return this.request(config);
+        // Prevent infinite retry loops
+        const retryCount = (config as any)._retryCount || 0;
+        if (retryCount >= 1) {
+          throw new ApiError(401, "Authentication failed after retry");
         }
-        // Dispatch auth failure event
-        window.dispatchEvent(new CustomEvent("auth:logout"));
-        throw new Error("Authentication failed");
+
+        // Don't refresh/retry for any core auth endpoints
+        const authEndpoints = ["/auth/login", "/auth/refresh", "/auth/logout", "/auth/me"];
+        const isAuthRequest = authEndpoints.some(endpoint => config.url.includes(endpoint));
+
+        if (!isAuthRequest) {
+          // Attempt token refresh
+          const refreshed = await this.refreshToken();
+          if (refreshed) {
+            // Retry original request exactly once
+            return this.request({ ...config, _retryCount: retryCount + 1 } as any);
+          }
+        }
+
+        // Dispatch logout event only if we aren't already on the login page
+        // and it wasn't a login attempt that failed
+        if (!config.url.includes("/auth/login") && !window.location.pathname.includes("/login")) {
+          window.dispatchEvent(new CustomEvent("auth:logout"));
+        }
+        throw new ApiError(401, "Authentication failed");
       }
 
       if (!response.ok) {
@@ -100,6 +116,33 @@ class ApiClient {
 
   post<T>(url: string, data?: unknown) {
     return this.request<T>({ method: "POST", url, data });
+  }
+
+  async postMultipart<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
+    const fullUrl = `${this.baseUrl}${url}`;
+    const headers = {
+      // Fetch will automatically set the correct Content-Type with boundary for FormData
+    };
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers,
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new ApiError(response.status, error.message || "Upload failed", error);
+      }
+
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(0, "Network error during upload.");
+    }
   }
 
   put<T>(url: string, data?: unknown) {

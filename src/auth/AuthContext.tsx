@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { User, Permission, AppRole } from "@/types/models";
 import { ROLE_PERMISSIONS } from "@/constants/permissions";
+import { apiClient } from "@/services/api-client";
+import { ENDPOINTS } from "@/config/api";
+import { ApiError } from "@/services/api-client";
 
 interface AuthState {
   user: User | null;
@@ -18,24 +21,6 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/**
- * Mock user for development. In production, this would come from the API
- * via JWT token stored in HTTP-only cookies.
- */
-const MOCK_USER: User = {
-  id: "usr_001",
-  email: "admin@school.edu",
-  firstName: "Sarah",
-  lastName: "Mitchell",
-  role: "admin",
-  permissions: ROLE_PERMISSIONS.admin,
-  isActive: true,
-  lastLogin: new Date().toISOString(),
-  avatarUrl: null,
-  createdAt: "2024-01-01T00:00:00Z",
-  updatedAt: new Date().toISOString(),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -43,40 +28,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: true,
   });
 
-  // Simulate checking existing session on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // In production: call /auth/me to validate session cookie
-      setState({
-        user: MOCK_USER,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    }, 500);
-    return () => clearTimeout(timer);
+  const mapUserResponse = useCallback((userData: any): User => {
+    const role = userData.roles[0] as AppRole;
+    return {
+      ...userData,
+      role,
+      permissions: ROLE_PERMISSIONS[role] || [],
+      isActive: true,
+      lastLogin: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      avatarUrl: userData.avatarUrl || null,
+    };
   }, []);
 
-  // Listen for forced logout events from API client
+  // Use a ref so that mapUserResponse never appears in the effect deps
+  const mapUserResponseRef = useRef(mapUserResponse);
+  mapUserResponseRef.current = mapUserResponse;
+
+  // Check existing session ONCE on mount
   useEffect(() => {
-    const handleLogout = () => logout();
+    const checkSession = async () => {
+      try {
+        const response = await apiClient.get<any>(ENDPOINTS.AUTH.ME);
+        setState({
+          user: mapUserResponseRef.current(response.data.data),
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } catch (err) {
+        // Only clear auth state on a real auth failure (401/403).
+        // A network error (status 0) should NOT log the user out.
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          setState({ user: null, isAuthenticated: false, isLoading: false });
+        } else {
+          // Network or unknown error — keep whatever state we had, just stop loading
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    };
+    checkSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount only
+
+  // Listen for forced logout events
+  useEffect(() => {
+    const handleLogout = () => {
+      setState({ user: null, isAuthenticated: false, isLoading: false });
+    };
     window.addEventListener("auth:logout", handleLogout);
     return () => window.removeEventListener("auth:logout", handleLogout);
   }, []);
 
-  const login = useCallback(async (_email: string, _password: string) => {
-    setState(prev => ({ ...prev, isLoading: true }));
-    // In production: POST /auth/login, server sets HTTP-only cookie
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setState({
-      user: MOCK_USER,
-      isAuthenticated: true,
-      isLoading: false,
-    });
-  }, []);
+  const login = useCallback(async (email: string, password: string) => {
+    if (state.isLoading && state.isAuthenticated) return; // Prevent loop if already logged in or loading
 
-  const logout = useCallback(() => {
-    // In production: POST /auth/logout to invalidate server session
-    setState({ user: null, isAuthenticated: false, isLoading: false });
+    setState(prev => ({ ...prev, isLoading: true }));
+    try {
+      const response = await apiClient.post<any>(ENDPOINTS.AUTH.LOGIN, { email, password });
+      setState({
+        user: mapUserResponse(response.data.data.user),
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      setState(prev => ({ ...prev, isLoading: false, user: null, isAuthenticated: false }));
+      throw error;
+    }
+  }, [mapUserResponse, state.isLoading, state.isAuthenticated]);
+
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post(ENDPOINTS.AUTH.LOGOUT);
+    } finally {
+      setState({ user: null, isAuthenticated: false, isLoading: false });
+    }
   }, []);
 
   const hasPermission = useCallback(

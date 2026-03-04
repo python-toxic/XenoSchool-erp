@@ -24,7 +24,6 @@ const ModuleStub: React.FC<ModuleStubProps> = ({ title, subtitle }) => (
   </>
 );
 
-export const ClassesPage = () => <ModuleStub title="Classes & Sections" subtitle="Manage class structure and sections" />;
 export const AttendancePage = () => <ModuleStub title="Attendance" subtitle="Track and manage daily attendance" />;
 export const ExamsPage = () => <ModuleStub title="Exams & Grades" subtitle="Manage examinations and grading" />;
 export const FeesPage = () => <ModuleStub title="Fees & Payments" subtitle="Fee management and payment tracking" />;

@@ -10,12 +10,15 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import LoginPage from "@/auth/LoginPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import StudentsPage from "@/features/students/StudentsPage";
+import AdmissionPage from "@/features/students/AdmissionPage";
 import TeachersPage from "@/features/teachers/TeachersPage";
+import ClassesPage from "@/features/academic/classes/ClassesDashboard";
 import {
-  ClassesPage, AttendancePage, ExamsPage, FeesPage,
+  ExamsPage, FeesPage,
   TimetablePage, AnnouncementsPage, ParentsPage,
   ReportsPage, SettingsPage, AuditPage,
 } from "@/features/stubs/ModuleStubs";
+import AttendancePage from "@/features/attendance/AttendancePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +38,7 @@ const App = () => (
             <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
               <Route path="/dashboard" element={<PermissionGuard permission="dashboard:view"><DashboardPage /></PermissionGuard>} />
               <Route path="/students" element={<PermissionGuard permission="students:view"><StudentsPage /></PermissionGuard>} />
+              <Route path="/students/admission" element={<PermissionGuard permission="students:create"><AdmissionPage /></PermissionGuard>} />
               <Route path="/teachers" element={<PermissionGuard permission="teachers:view"><TeachersPage /></PermissionGuard>} />
               <Route path="/classes" element={<PermissionGuard permission="classes:view"><ClassesPage /></PermissionGuard>} />
               <Route path="/attendance" element={<PermissionGuard permission="attendance:view"><AttendancePage /></PermissionGuard>} />

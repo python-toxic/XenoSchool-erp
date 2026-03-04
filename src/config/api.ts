@@ -6,8 +6,9 @@
  * 
  * NEVER store secrets here. Only public configuration.
  */
+console.log("API BASE URL:", import.meta.env.VITE_API_BASE_URL || "/api/v1 (proxied)");
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "/api",
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   TOKEN_REFRESH_THRESHOLD: 300, // seconds before expiry to trigger refresh

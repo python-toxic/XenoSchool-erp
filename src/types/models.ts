@@ -92,6 +92,25 @@ export interface Student extends Timestamps, Auditable {
   parentId: string;
   isActive: boolean;
   enrollmentDate: string;
+
+  // Extended Info
+  fatherName: string;
+  motherName: string | null;
+  emergencyPhone: string;
+  previousSchool: string | null;
+  medicalInfo: string | null;
+  otherInfo: string | null;
+
+  documents?: StudentDocument[];
+}
+
+export interface StudentDocument {
+  id: string;
+  studentId: string;
+  type: string;
+  name: string;
+  url: string;
+  createdAt: string;
 }
 
 export interface Parent extends Timestamps, Auditable {

@@ -1,7 +1,7 @@
 import { AppRole, Permission } from "@/types/models";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  super_admin: "Super Admin",
+  super_admin: "Admin",
   admin: "Admin",
   principal: "Principal",
   teacher: "Teacher",
