@@ -107,11 +107,12 @@ auditLogger(app);
 app.setErrorHandler((error: FastifyError, _request, reply) => {
     app.log.error(error);
 
-    if (error.validation) {
+    if (error.validation || error.name === 'ZodError') {
+        const details = (error as any).issues || error.validation;
         return reply.status(400).send({
             error: "Validation Error",
             message: error.message,
-            details: error.validation,
+            details: details,
         });
     }
 

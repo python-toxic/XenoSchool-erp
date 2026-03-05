@@ -162,6 +162,7 @@ model Class {
   sections     Section[]
   students     Student[]
 
+  @@unique([name])
   @@map("classes")
 }
 
@@ -178,6 +179,7 @@ model Section {
 
   students Student[]
 
+  @@unique([name, classId])
   @@map("sections")
 }
 

@@ -54,10 +54,9 @@ async function main() {
 
     // Create a Class and Section for the Student
     const class10 = await prisma.class.upsert({
-        where: { id: "class-10-id" },
+        where: { name: "Class 10" },
         update: {},
         create: {
-            id: "class-10-id",
             name: "Class 10",
             grade: 10,
             academicYear: "2024-25",
@@ -65,10 +64,9 @@ async function main() {
     });
 
     const sectionA = await prisma.section.upsert({
-        where: { id: "section-a-id" },
+        where: { name_classId: { name: "A", classId: class10.id } },
         update: {},
         create: {
-            id: "section-a-id",
             name: "A",
             capacity: 30,
             classId: class10.id,
